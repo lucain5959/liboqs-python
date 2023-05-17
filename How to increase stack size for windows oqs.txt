@@ -1,0 +1,29 @@
+at the top:
+import concurrent.futures
+import threading
+
+_stack_extended = False
+_stack_boost = 1024 ** 2 * 10
+
+
+------------------------------------------------
+
+then under the key encapsulation class
+
+    def _generate_keypair(self):
+        public_key = ct.create_string_buffer(self._kem.contents.length_public_key)
+        self.secret_key = ct.create_string_buffer(self._kem.contents.length_secret_key)
+        rv = native().OQS_KEM_keypair(self._kem, ct.byref(public_key), ct.byref(self.secret_key))
+        return bytes(public_key) if rv == OQS_SUCCESS else None
+
+    def generate_keypair(self):
+        global _stack_extended
+
+        if not _stack_extended:
+            stack_size = threading.stack_size() or _stack_boost
+            threading.stack_size(stack_size + _stack_boost)
+            _stack_extended = True
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(self._generate_keypair)
+            return future.result()
